@@ -52,6 +52,13 @@ written by
    };
 #endif
 
+   typedef struct nantl_header
+   {
+      unsigned char magic;
+      unsigned char cksum; //checksum
+      unsigned short length;
+   }natnl_hdr;
+
 class CChannel;
 
 class CPacket
@@ -89,7 +96,7 @@ public:
       // Returned value:
       //    None.
 
-   void setLength(int len);
+   void setLength(const int& len);
 
       // Functionality:
       //    Pack a Control packet.
@@ -101,7 +108,7 @@ public:
       // Returned value:
       //    None.
 
-   void pack(int pkttype, void* lparam = NULL, void* rparam = NULL, int size = 0);
+   void pack(const int& pkttype, void* lparam = NULL, void* rparam = NULL, const int& size = 0);
 
       // Functionality:
       //    Read the packet vector.
@@ -202,7 +209,7 @@ public:
    CHandShake();
 
    int serialize(char* buf, int& size);
-   int deserialize(const char* buf, int size);
+   int deserialize(const char* buf, const int& size);
 
 public:
    static const int m_iContentSize;	// Size of hand shake data

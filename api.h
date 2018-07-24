@@ -107,11 +107,11 @@ public:
       // Functionality:
       //    initialize the UDT library.
       // Parameters:
-      //    None.
+      //    inst_id  The instance id of sdk.
       // Returned value:
       //    0 if success, otherwise -1 is returned.
 
-   int startup();
+   int startup(int inst_id);
 
       // Functionality:
       //    release the UDT library.
@@ -130,7 +130,7 @@ public:
       // Returned value:
       //    The new UDT socket ID, or INVALID_SOCK.
 
-   UDTSOCKET newSocket(int af, int type);
+   UDTSOCKET newSocket(const int& af, const int& type);
 
       // Functionality:
       //    Create a new UDT connection.
@@ -163,11 +163,17 @@ public:
 
       // socket APIs
 
-   int bind(const UDTSOCKET u, const sockaddr* name, int namelen);
+   int bind(const UDTSOCKET u, const sockaddr* name, const int& namelen);
    int bind(const UDTSOCKET u, UDPSOCKET udpsock);
-   int listen(const UDTSOCKET u, int backlog);
+   int listen(const UDTSOCKET u, const int& backlog);
    UDTSOCKET accept(const UDTSOCKET listen, sockaddr* addr, int* addrlen);
-   int connect(const UDTSOCKET u, const sockaddr* name, int namelen);
+   int connect(const UDTSOCKET u, const sockaddr* name, const int& namelen);
+   
+   //for natnl
+   int connect(void *call);
+   int bind(void *call);
+   int close(void *call);
+
    int close(const UDTSOCKET u);
    int getpeername(const UDTSOCKET u, sockaddr* name, int* namelen);
    int getsockname(const UDTSOCKET u, sockaddr* name, int* namelen);
@@ -200,9 +206,6 @@ public:
    CUDTException* getError();
 
 private:
-//   void init();
-
-private:
    std::map<UDTSOCKET, CUDTSocket*> m_Sockets;       // stores all the socket structures
 
    pthread_mutex_t m_ControlLock;                    // used to synchronize UDT API
@@ -217,7 +220,7 @@ private:
    #ifndef WIN32
       static void TLSDestroy(void* e) {if (NULL != e) delete (CUDTException*)e;}
    #else
-      std::map<DWORD, CUDTException*> m_mTLSRecord;
+      std::map<HANDLE, CUDTException*> m_mTLSRecord;
       void checkTLSValue();
       pthread_mutex_t m_TLSLock;
    #endif
@@ -225,9 +228,11 @@ private:
 private:
    void connect_complete(const UDTSOCKET u);
    CUDTSocket* locate(const UDTSOCKET u);
-   CUDTSocket* locate(const sockaddr* peer, const UDTSOCKET id, int32_t isn);
+   CUDTSocket* locate(const sockaddr* peer, const UDTSOCKET& id, const int32_t& isn);
    void updateMux(CUDTSocket* s, const sockaddr* addr = NULL, const UDPSOCKET* = NULL);
    void updateMux(CUDTSocket* s, const CUDTSocket* ls);
+   //for natnl
+   void updateMux(void *stream);
 
 private:
    std::map<int, CMultiplexer> m_mMultiplexer;		// UDP multiplexer
@@ -259,6 +264,8 @@ private:
 
 private:
    CEPoll m_EPoll;                                     // handling epoll data structures and events
+
+   int m_iInstId;
 
 private:
    CUDTUnited(const CUDTUnited&);

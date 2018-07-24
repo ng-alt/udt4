@@ -67,11 +67,11 @@ written by
 //if compiling with MinGW, it only works on XP or above
 //use -D_WIN32_WINNT=0x0501
 
-
+#if 0
 #ifdef WIN32
    #ifndef __MINGW__
       // Explicitly define 32-bit and 64-bit numbers
-      typedef __int32 int32_t;
+      typedef __int32 int32_t; 
       typedef __int64 int64_t;
       typedef unsigned __int32 uint32_t;
       #ifndef LEGACY_WIN32
@@ -82,22 +82,25 @@ written by
       #endif
 
       #ifdef UDT_EXPORTS
-         #define UDT_API __declspec(dllexport)
+         #define UDT_API //__declspec(dllexport)
       #else
-         #define UDT_API __declspec(dllimport)
+         #define UDT_API //__declspec(dllimport)
       #endif
    #else
       #define UDT_API
    #endif
 #else
-   #define UDT_API __attribute__ ((visibility("default")))
+   #define UDT_API
+#endif
+#else
+#include "wrap.h"
 #endif
 
 #define NO_BUSY_WAITING
 
 #ifdef WIN32
    #ifndef __MINGW__
-      typedef SOCKET SYSSOCKET;
+      typedef UINT_PTR SYSSOCKET;	// Roger - "SOCKET -> UINT_PTR"
    #else
       typedef int SYSSOCKET;
    #endif
@@ -285,21 +288,14 @@ public: // Error Code
    static const int EASYNCFAIL;
    static const int EASYNCSND;
    static const int EASYNCRCV;
-   static const int ETIMEOUT;
    static const int EPEERERR;
    static const int EUNKNOWN;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// If you need to export these APIs to be used by a different language,
-// declare extern "C" for them, and add a "udt_" prefix to each API.
-// The following APIs: sendfile(), recvfile(), epoll_wait(), geterrormsg(),
-// include C++ specific feature, please use the corresponding sendfile2(), etc.
-
 namespace UDT
 {
-
 typedef CUDTException ERRORINFO;
 typedef UDTOpt SOCKOPT;
 typedef CPerfMon TRACEINFO;
@@ -309,14 +305,20 @@ UDT_API extern const UDTSOCKET INVALID_SOCK;
 #undef ERROR
 UDT_API extern const int ERROR;
 
-UDT_API int startup();
+UDT_API int startup(int inst_id);
 UDT_API int cleanup();
 UDT_API UDTSOCKET socket(int af, int type, int protocol);
 UDT_API int bind(UDTSOCKET u, const struct sockaddr* name, int namelen);
-UDT_API int bind2(UDTSOCKET u, UDPSOCKET udpsock);
+UDT_API int bind(UDTSOCKET u, UDPSOCKET udpsock);
 UDT_API int listen(UDTSOCKET u, int backlog);
 UDT_API UDTSOCKET accept(UDTSOCKET u, struct sockaddr* addr, int* addrlen);
 UDT_API int connect(UDTSOCKET u, const struct sockaddr* name, int namelen);
+
+//for natnl
+UDT_API int connect_stream(void *call);
+UDT_API int bind_stream(void *call);
+UDT_API int close_stream(void *call);
+
 UDT_API int close(UDTSOCKET u);
 UDT_API int getpeername(UDTSOCKET u, struct sockaddr* name, int* namelen);
 UDT_API int getsockname(UDTSOCKET u, struct sockaddr* name, int* namelen);
@@ -328,30 +330,18 @@ UDT_API int sendmsg(UDTSOCKET u, const char* buf, int len, int ttl = -1, bool in
 UDT_API int recvmsg(UDTSOCKET u, char* buf, int len);
 UDT_API int64_t sendfile(UDTSOCKET u, std::fstream& ifs, int64_t& offset, int64_t size, int block = 364000);
 UDT_API int64_t recvfile(UDTSOCKET u, std::fstream& ofs, int64_t& offset, int64_t size, int block = 7280000);
-UDT_API int64_t sendfile2(UDTSOCKET u, const char* path, int64_t* offset, int64_t size, int block = 364000);
-UDT_API int64_t recvfile2(UDTSOCKET u, const char* path, int64_t* offset, int64_t size, int block = 7280000);
-
-// select and selectEX are DEPRECATED; please use epoll. 
 UDT_API int select(int nfds, UDSET* readfds, UDSET* writefds, UDSET* exceptfds, const struct timeval* timeout);
-UDT_API int selectEx(const std::vector<UDTSOCKET>& fds, std::vector<UDTSOCKET>* readfds,
-                     std::vector<UDTSOCKET>* writefds, std::vector<UDTSOCKET>* exceptfds, int64_t msTimeOut);
-
+UDT_API int selectEx(const std::vector<UDTSOCKET>& fds, std::vector<UDTSOCKET>* readfds, std::vector<UDTSOCKET>* writefds, std::vector<UDTSOCKET>* exceptfds, int64_t msTimeOut);
 UDT_API int epoll_create();
-UDT_API int epoll_add_usock(int eid, UDTSOCKET u, const int* events = NULL);
-UDT_API int epoll_add_ssock(int eid, SYSSOCKET s, const int* events = NULL);
-UDT_API int epoll_remove_usock(int eid, UDTSOCKET u);
-UDT_API int epoll_remove_ssock(int eid, SYSSOCKET s);
-UDT_API int epoll_wait(int eid, std::set<UDTSOCKET>* readfds, std::set<UDTSOCKET>* writefds, int64_t msTimeOut,
-                       std::set<SYSSOCKET>* lrfds = NULL, std::set<SYSSOCKET>* wrfds = NULL);
-UDT_API int epoll_wait2(int eid, UDTSOCKET* readfds, int* rnum, UDTSOCKET* writefds, int* wnum, int64_t msTimeOut,
-                        SYSSOCKET* lrfds = NULL, int* lrnum = NULL, SYSSOCKET* lwfds = NULL, int* lwnum = NULL);
-UDT_API int epoll_release(int eid);
+UDT_API int epoll_add_usock(const int eid, const UDTSOCKET u, const int* events = NULL);
+UDT_API int epoll_add_ssock(const int eid, const SYSSOCKET s, const int* events = NULL);
+UDT_API int epoll_remove_usock(const int eid, const UDTSOCKET u);
+UDT_API int epoll_remove_ssock(const int eid, const SYSSOCKET s);
+UDT_API int epoll_wait(const int eid, std::set<UDTSOCKET>* readfds, std::set<UDTSOCKET>* writefds, int64_t msTimeOut, std::set<SYSSOCKET>* lrfds = NULL, std::set<SYSSOCKET>* wrfds = NULL);
+UDT_API int epoll_release(const int eid);
 UDT_API ERRORINFO& getlasterror();
-UDT_API int getlasterror_code();
-UDT_API const char* getlasterror_desc();
 UDT_API int perfmon(UDTSOCKET u, TRACEINFO* perf, bool clear = true);
 UDT_API UDTSTATUS getsockstate(UDTSOCKET u);
-
-}  // namespace UDT
+}
 
 #endif

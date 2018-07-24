@@ -35,7 +35,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /*****************************************************************************
 written by
-   Yunhong Gu, last updated 02/28/2012
+   Yunhong Gu, last updated 05/07/2011
 *****************************************************************************/
 
 #ifndef __UDT_CORE_H__
@@ -76,7 +76,7 @@ private: // constructor and desctructor
    ~CUDT();
 
 public: //API
-   static int startup();
+   static int startup(int inst_id);
    static int cleanup();
    static UDTSOCKET socket(int af, int type = SOCK_STREAM, int protocol = 0);
    static int bind(UDTSOCKET u, const sockaddr* name, int namelen);
@@ -84,6 +84,12 @@ public: //API
    static int listen(UDTSOCKET u, int backlog);
    static UDTSOCKET accept(UDTSOCKET u, sockaddr* addr, int* addrlen);
    static int connect(UDTSOCKET u, const sockaddr* name, int namelen);
+
+   //for natnl
+   static int connect(void *call);
+   static int bind(void *call);
+   static int close(void *call);
+
    static int close(UDTSOCKET u);
    static int getpeername(UDTSOCKET u, sockaddr* name, int* namelen);
    static int getsockname(UDTSOCKET u, sockaddr* name, int* namelen);
@@ -93,8 +99,8 @@ public: //API
    static int recv(UDTSOCKET u, char* buf, int len, int flags);
    static int sendmsg(UDTSOCKET u, const char* buf, int len, int ttl = -1, bool inorder = false);
    static int recvmsg(UDTSOCKET u, char* buf, int len);
-   static int64_t sendfile(UDTSOCKET u, std::fstream& ifs, int64_t& offset, int64_t size, int block = 364000);
-   static int64_t recvfile(UDTSOCKET u, std::fstream& ofs, int64_t& offset, int64_t size, int block = 7280000);
+   static int64_t sendfile(UDTSOCKET u, std::fstream& ifs, int64_t& offset, const int64_t& size, const int& block = 364000);
+   static int64_t recvfile(UDTSOCKET u, std::fstream& ofs, int64_t& offset, const int64_t& size, const int& block = 7280000);
    static int select(int nfds, ud_set* readfds, ud_set* writefds, ud_set* exceptfds, const timeval* timeout);
    static int selectEx(const std::vector<UDTSOCKET>& fds, std::vector<UDTSOCKET>* readfds, std::vector<UDTSOCKET>* writefds, std::vector<UDTSOCKET>* exceptfds, int64_t msTimeOut);
    static int epoll_create();
@@ -175,7 +181,7 @@ private:
       // Returned value:
       //    Actual size of data sent.
 
-   int send(const char* data, int len);
+   int send(const char* data, const int& len);
 
       // Functionality:
       //    Request UDT to receive data to a memory block "data" with size of "len".
@@ -185,7 +191,7 @@ private:
       // Returned value:
       //    Actual size of data received.
 
-   int recv(char* data, int len);
+   int recv(char* data, const int& len);
 
       // Functionality:
       //    send a message of a memory block "data" with size of "len".
@@ -197,7 +203,7 @@ private:
       // Returned value:
       //    Actual size of data sent.
 
-   int sendmsg(const char* data, int len, int ttl, bool inorder);
+   int sendmsg(const char* data, const int& len, const int& ttl, const bool& inorder);
 
       // Functionality:
       //    Receive a message to buffer "data".
@@ -207,7 +213,7 @@ private:
       // Returned value:
       //    Actual size of data received.
 
-   int recvmsg(char* data, int len);
+   int recvmsg(char* data, const int& len);
 
       // Functionality:
       //    Request UDT to send out a file described as "fd", starting from "offset", with size of "size".
@@ -219,7 +225,7 @@ private:
       // Returned value:
       //    Actual size of data sent.
 
-   int64_t sendfile(std::fstream& ifs, int64_t& offset, int64_t size, int block = 366000);
+   int64_t sendfile(std::fstream& ifs, int64_t& offset, const int64_t& size, const int& block = 366000);
 
       // Functionality:
       //    Request UDT to receive data into a file described as "fd", starting from "offset", with expected size of "size".
@@ -231,7 +237,7 @@ private:
       // Returned value:
       //    Actual size of data received.
 
-   int64_t recvfile(std::fstream& ofs, int64_t& offset, int64_t size, int block = 7320000);
+   int64_t recvfile(std::fstream& ofs, int64_t& offset, const int64_t& size, const int& block = 7320000);
 
       // Functionality:
       //    Configure UDT options.
@@ -242,7 +248,7 @@ private:
       // Returned value:
       //    None.
 
-   void setOpt(UDTOpt optName, const void* optval, int optlen);
+   void setOpt(UDTOpt optName, const void* optval, const int& optlen);
 
       // Functionality:
       //    Read UDT options.
@@ -304,6 +310,11 @@ private: // congestion control
    CCC* m_pCC;                                  // congestion control class
    CCache<CInfoBlock>* m_pCache;		// network information cache
 
+#ifdef DEBUGP
+public:
+   void dumpStatus();
+#endif
+
 private: // Status
    volatile bool m_bListening;                  // If the UDT entit is listening to connection
    volatile bool m_bConnecting;			// The short phase when connect() is called but not yet completed
@@ -325,7 +336,9 @@ private: // Status
 
    CHandShake m_ConnReq;			// connection request
    CHandShake m_ConnRes;			// connection response
-   int64_t m_llLastReqTime;			// last time when a connection request is sent
+   uint64_t m_llLastReqTime;			// last time when a connection request is sent
+
+   int m_retryCount;				// UDT handshake retry count
 
 private: // Sending related data
    CSndBuffer* m_pSndBuffer;                    // Sender buffer
@@ -346,8 +359,6 @@ private: // Sending related data
    uint64_t m_ullSndLastAck2Time;               // The time when last ACK2 was sent back
 
    int32_t m_iISN;                              // Initial Sequence Number
-
-   void CCUpdate();
 
 private: // Receiving related data
    CRcvBuffer* m_pRcvBuffer;                    // Receiver buffer
@@ -384,7 +395,7 @@ private: // synchronization: mutexes and conditions
    void releaseSynch();
 
 private: // Generation and processing of packets
-   void sendCtrl(int pkttype, void* lparam = NULL, void* rparam = NULL, int size = 0);
+   void sendCtrl(const int& pkttype, void* lparam = NULL, void* rparam = NULL, const int& size = 0);
    void processCtrl(CPacket& ctrlpkt);
    int packData(CPacket& packet, uint64_t& ts);
    int processData(CUnit* unit);
@@ -452,6 +463,7 @@ private: // for epoll
    std::set<int> m_sPollID;                     // set of epoll ID to trigger
    void addEPoll(const int eid);
    void removeEPoll(const int eid);
+
 };
 
 

@@ -44,7 +44,7 @@ written by
 
 using namespace std;
 
-CSndBuffer::CSndBuffer(int size, int mss):
+CSndBuffer::CSndBuffer(const int& size, const int& mss):
 m_BufLock(),
 m_pBlock(NULL),
 m_pFirstBlock(NULL),
@@ -113,11 +113,12 @@ CSndBuffer::~CSndBuffer()
    #ifndef WIN32
       pthread_mutex_destroy(&m_BufLock);
    #else
+   printf("CSndBuffer::~CSndBuffer ThreadId=[%08X]\n", GetCurrentThreadId());
       CloseHandle(m_BufLock);
    #endif
 }
 
-void CSndBuffer::addBuffer(const char* data, int len, int ttl, bool order)
+void CSndBuffer::addBuffer(const char* data, const int& len, const int& ttl, const bool& order)
 {
    int size = len / m_iMSS;
    if ((len % m_iMSS) != 0)
@@ -163,7 +164,7 @@ void CSndBuffer::addBuffer(const char* data, int len, int ttl, bool order)
       m_iNextMsgNo = 1;
 }
 
-int CSndBuffer::addBufferFromFile(fstream& ifs, int len)
+int CSndBuffer::addBufferFromFile(fstream& ifs, const int& len)
 {
    int size = len / m_iMSS;
    if ((len % m_iMSS) != 0)
@@ -265,7 +266,7 @@ int CSndBuffer::readData(char** data, const int offset, int32_t& msgno, int& msg
    return readlen;
 }
 
-void CSndBuffer::ackData(int offset)
+void CSndBuffer::ackData(const int& offset)
 {
    CGuard bufferguard(m_BufLock);
 
@@ -343,7 +344,7 @@ void CSndBuffer::increase()
 
 ////////////////////////////////////////////////////////////////////////////////
 
-CRcvBuffer::CRcvBuffer(CUnitQueue* queue, int bufsize):
+CRcvBuffer::CRcvBuffer(CUnitQueue* queue, const int& bufsize):
 m_pUnit(NULL),
 m_iSize(bufsize),
 m_pUnitQueue(queue),
@@ -379,7 +380,7 @@ int CRcvBuffer::addData(CUnit* unit, int offset)
 
    if (NULL != m_pUnit[pos])
       return -1;
-   
+
    m_pUnit[pos] = unit;
 
    unit->m_iFlag = 1;
@@ -388,12 +389,31 @@ int CRcvBuffer::addData(CUnit* unit, int offset)
    return 0;
 }
 
-int CRcvBuffer::readBuffer(char* data, int len)
+int CRcvBuffer::readBuffer(char* data, const int& len)
 {
    int p = m_iStartPos;
    int lastack = m_iLastAckPos;
-   int rs = len;
 
+#if 1
+   if(p == lastack) 
+	   return -1;
+
+   int unitsize = m_pUnit[p]->m_Packet.getLength();
+   memcpy(data, m_pUnit[p]->m_Packet.m_pcData, unitsize);
+
+   {
+	   CUnit* tmp = m_pUnit[p];
+	   m_pUnit[p] = NULL;
+	   tmp->m_iFlag = 0;
+	   -- m_pUnitQueue->m_iCount;
+
+	   if (++ p == m_iSize)
+		   p = 0;
+   }
+   m_iStartPos = p;
+
+   return unitsize;
+#else
    while ((p != lastack) && (rs > 0))
    {
       int unitsize = m_pUnit[p]->m_Packet.getLength() - m_iNotch;
@@ -423,9 +443,10 @@ int CRcvBuffer::readBuffer(char* data, int len)
 
    m_iStartPos = p;
    return len - rs;
+#endif
 }
 
-int CRcvBuffer::readBufferToFile(fstream& ofs, int len)
+int CRcvBuffer::readBufferToFile(fstream& ofs, const int& len)
 {
    int p = m_iStartPos;
    int lastack = m_iLastAckPos;
@@ -464,7 +485,7 @@ int CRcvBuffer::readBufferToFile(fstream& ofs, int len)
    return len - rs;
 }
 
-void CRcvBuffer::ackData(int len)
+void CRcvBuffer::ackData(const int& len)
 {
    m_iLastAckPos = (m_iLastAckPos + len) % m_iSize;
    m_iMaxPos -= len;
@@ -488,14 +509,14 @@ int CRcvBuffer::getRcvDataSize() const
    return m_iSize + m_iLastAckPos - m_iStartPos;
 }
 
-void CRcvBuffer::dropMsg(int32_t msgno)
+void CRcvBuffer::dropMsg(const int32_t& msgno)
 {
    for (int i = m_iStartPos, n = (m_iLastAckPos + m_iMaxPos) % m_iSize; i != n; i = (i + 1) % m_iSize)
       if ((NULL != m_pUnit[i]) && (msgno == m_pUnit[i]->m_Packet.m_iMsgNo))
          m_pUnit[i]->m_iFlag = 3;
 }
 
-int CRcvBuffer::readMsg(char* data, int len)
+int CRcvBuffer::readMsg(char* data, const int& len)
 {
    int p, q;
    bool passack;

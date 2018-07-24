@@ -43,18 +43,18 @@ written by
 
 
 #include "udt.h"
+#include "common.h"
 #include "packet.h"
-
 
 class CChannel
 {
 public:
    CChannel();
-   CChannel(int version);
+   CChannel(const int& version);
    ~CChannel();
 
       // Functionality:
-      //    Open a UDP channel.
+      //    Opne a UDP channel.
       // Parameters:
       //    0) [in] addr: The local address that UDP will use.
       // Returned value:
@@ -63,13 +63,18 @@ public:
    void open(const sockaddr* addr = NULL);
 
       // Functionality:
-      //    Open a UDP channel based on an existing UDP socket.
+      //    Opne a UDP channel based on an existing UDP socket.
       // Parameters:
       //    0) [in] udpsock: UDP socket descriptor.
       // Returned value:
       //    None.
 
    void open(UDPSOCKET udpsock);
+
+   /*==== add by Andrew ====*/
+   void open(void *stream);
+   void close(void *stream);
+   /*==== end ====*/
 
       // Functionality:
       //    Disconnect and close the UDP entity.
@@ -78,7 +83,7 @@ public:
       // Returned value:
       //    None.
 
-   void close() const;
+   void close();
 
       // Functionality:
       //    Get the UDP sending buffer size.
@@ -105,7 +110,7 @@ public:
       // Returned value:
       //    None.
 
-   void setSndBufSize(int size);
+   void setSndBufSize(const int& size);
 
       // Functionality:
       //    Set the UDP receiving buffer size.
@@ -114,7 +119,7 @@ public:
       // Returned value:
       //    None.
 
-   void setRcvBufSize(int size);
+   void setRcvBufSize(const int& size);
 
       // Functionality:
       //    Query the socket address that the channel is using.
@@ -154,6 +159,8 @@ public:
 
    int recvfrom(sockaddr* addr, CPacket& packet) const;
 
+   //int get_tnl_stream(void) const;
+
 private:
    void setUDPSockOpt();
 
@@ -165,6 +172,16 @@ private:
 
    int m_iSndBufSize;                   // UDP sending buffer size
    int m_iRcvBufSize;                   // UDP receiving buffer size
+
+   void enterCS(const pthread_mutex_t& lock);
+   void leaveCS(const pthread_mutex_t& lock);
+
+public:
+   void *m_call;
+   CTimer *m_pTimer;
+
+private:
+   unsigned char m_pktBuffer[2500];
 };
 
 
